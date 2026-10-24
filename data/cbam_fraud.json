@@ -1,0 +1,4 @@
+{"exporter":"Greenwash Metals Ltd (demo)","exporterId":"IEC-0599XXXX66","cnCode":"7208","product":"Hot-rolled flat steel coils","route":"BF-BOF","year":2026,"quarter":3,
+ "productionTonnes":12000,"monthlyProductionT":[3000,3200,3100],
+ "fuels":{"cokingCoalT":8400,"thermalCoalT":950,"limestoneT":2000},"electricityMWh":5000,"gridFactor":0.71,"declaredIntensity":1.1,
+ "note":"Fictional exporter: declares 'green steel' 1.1 tCO2/t while its own fuel data implies ~2.3"}

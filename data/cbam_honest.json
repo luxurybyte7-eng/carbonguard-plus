@@ -1,0 +1,4 @@
+{"exporter":"Kalinga Steel Works Pvt Ltd (demo)","exporterId":"IEC-0599XXXX01","cnCode":"7208","product":"Hot-rolled flat steel coils","route":"BF-BOF","year":2026,"quarter":3,
+ "productionTonnes":12000,"monthlyProductionT":[3900,4100,4000],
+ "fuels":{"cokingCoalT":8200,"thermalCoalT":900,"limestoneT":2100},"electricityMWh":4800,"gridFactor":0.71,"declaredIntensity":2.3,
+ "note":"Fictional exporter, illustrative numbers"}

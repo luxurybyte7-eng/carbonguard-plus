@@ -129,5 +129,11 @@
    "t": "2026-09-30",
    "value": 471.1
   }
- ]
+ ],
+ "location": {
+  "lat": 23.02,
+  "lon": 72.57,
+  "place": "Ahmedabad, Gujarat, India"
+ },
+ "note": "Fabricated demo dataset: copy-pasted ~420 kWh/day regardless of weather, 3 spikes, 3.3x over-claim."
 }

@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><title>CarbonGuard CBAM – verify</title><style>body{font-family:system-ui,sans-serif;margin:0;background:#0b1f17;color:#e8f5ee}header{padding:18px 28px;background:#0f2e22;border-bottom:1px solid #1f5c43}h1{margin:0;font-size:24px}h1 span{color:#4ade80}.sub{color:#9fc9b3;font-size:14px}
+main{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px 28px}.card{background:#123426;border:1px solid #1f5c43;border-radius:10px;padding:16px}h2{margin-top:0;font-size:17px;color:#86efac}
+button{background:#22c55e;border:0;color:#04210f;font-weight:700;padding:9px 14px;border-radius:7px;cursor:pointer;margin:3px}button.alt{background:#f59e0b}textarea{width:100%;height:150px;background:#071812;color:#cfe;border:1px solid #1f5c43;font-family:monospace;font-size:12px}
+.pass{color:#4ade80;font-weight:700}.block{color:#f87171;font-weight:700}.f-high{color:#fca5a5}.f-medium{color:#fcd34d}.f-ok{color:#86efac}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid #1f5c43;padding:5px;text-align:left}
+.log{font-family:monospace;font-size:11px;white-space:pre-wrap;color:#9fc9b3;word-break:break-all}.score{font-size:42px;font-weight:800}canvas{width:100%;height:120px;background:#071812;border-radius:6px}.full{grid-column:1/3}</style></head></head><body>
+<header><h1>Carbon<span>Guard</span> — EU importer / auditor verification</h1><div class="sub">Paste an attestation ID to read it from the blockchain. Optionally paste the disclosed data + salt to prove the numbers were not changed.</div><nav style="margin-top:8px"><a style="color:#4ade80;margin-right:16px" href="/">① Carbon credits + satellite MRV</a><a style="color:#fcd34d;margin-right:16px" href="/cbam.html">② CBAM exporter attestation</a><a style="color:#93c5fd" href="/verify.html">③ EU importer verify</a></nav></header>
+<main><div class="card"><h2>Attestation ID</h2><input id="id" style="width:100%;font-family:monospace;background:#071812;color:#cfe;border:1px solid #1f5c43;padding:6px"/>
+<h2 style="margin-top:12px">Disclosed data (optional)</h2><textarea id="data"></textarea><h2>Salt (optional)</h2><input id="salt" style="width:100%;font-family:monospace;background:#071812;color:#cfe;border:1px solid #1f5c43;padding:6px"/>
+<div><button onclick="go()">Verify on-chain</button><button class="alt" onclick="fill()">Use last attestation</button><button class="alt" onclick="tamper()">Simulate tampered data</button></div></div>
+<div class="card"><h2>Result</h2><div id="out">—</div></div></main><script>
+const $=id=>document.getElementById(id);
+function fill(){const l=JSON.parse(localStorage.getItem('cg_last')||'null');if(!l)return alert('Create an attestation on the CBAM page first');$('id').value=l.id;$('salt').value=l.salt;$('data').value=JSON.stringify(l.data,null,1)}
+function tamper(){const d=JSON.parse($('data').value);d.electricityMWh=Math.round(d.electricityMWh*0.6);$('data').value=JSON.stringify(d,null,1);go()}
+async function go(){const b={id:$('id').value.trim()};if($('data').value.trim()&&$('salt').value.trim()){b.data=JSON.parse($('data').value);b.salt=$('salt').value.trim()}
+ const r=await (await fetch('/api/cbam/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)})).json();
+ if(!r.found){$('out').innerHTML='<div class="score block">NOT FOUND</div>'+r.error;return}
+ $('out').innerHTML=`<div class="score ${r.revoked?'block':'pass'}">${r.revoked?'REVOKED':'VALID ATTESTATION'}</div><table>
+ <tr><td>CN code</td><td>${r.cnCode}</td></tr><tr><td>Period</td><td>${r.year} Q${r.quarter}</td></tr><tr><td>Goods</td><td>${r.tonnes} t</td></tr>
+ <tr><td>Verified embedded emissions</td><td><b>${r.intensity} tCO₂/t</b> (${(r.intensity*r.tonnes).toFixed(0)} tCO₂ total)</td></tr><tr><td>AI risk score</td><td>${r.riskScore}/100</td></tr>
+ <tr><td>Verifier</td><td>${r.verifier}</td></tr><tr><td>Time</td><td>${new Date(r.timestamp*1000).toISOString()}</td></tr><tr><td>Contract</td><td>${r.contract}</td></tr><tr><td>On-chain commitment</td><td class="log">${r.commitment}</td></tr></table>
+ ${r.recomputed?`<h2 style="margin-top:12px">Disclosed data check</h2><div class="score ${r.dataMatches?'pass':'block'}" style="font-size:28px">${r.dataMatches?'✅ DATA MATCHES COMMITMENT':'⛔ DATA WAS ALTERED'}</div><div class="log">recomputed: ${r.recomputed}</div>`:''}`}
+const h=location.hash.slice(1);if(h){$('id').value=h;const l=JSON.parse(localStorage.getItem('cg_last')||'null');if(l&&l.id==h){$('salt').value=l.salt;$('data').value=JSON.stringify(l.data,null,1)}go()}
+</script></body></html>

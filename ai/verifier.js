@@ -17,18 +17,22 @@ function anomalies(values, thresh = 3.5) {
  * dataset = { projectType: "solar"|"reforestation"|"cookstove", claimedTonnes, readings:[{t, value}],
  *             gridEmissionFactor (tCO2/MWh, solar), capacityKw (solar), areaHa (reforestation) }
  */
-function verify(dataset) {
+function verify(dataset, opts = {}) {
   const findings = [];
   let risk = 0;
   const vals = (dataset.readings || []).map(r => Number(r.value));
+  const irr = opts.irradiance; // NASA POWER data (optional): enables weather-normalised checks
+  let satellite = null;
   if (vals.length < 7) { findings.push({ severity: "high", msg: `Only ${vals.length} readings - insufficient monitoring data` }); risk += 35; }
 
   // 1. Sensor anomalies (spikes / tampering)
-  const an = vals.length ? anomalies(vals) : [];
+  // With satellite data, look for anomalies in output-per-sunlight (so cloudy days are not false positives).
+  const series = irr && dataset.capacityKw ? (dataset.readings || []).map(r => irr.daily[r.t] ? Number(r.value) / irr.daily[r.t] : null).filter(x => x !== null) : vals;
+  const an = series.length ? anomalies(series) : [];
   if (an.length) {
     const pct = an.length / vals.length;
     risk += Math.min(30, Math.round(pct * 150) + 5);
-    findings.push({ severity: pct > 0.1 ? "high" : "medium", msg: `${an.length} anomalous reading(s) (robust z > 3.5), e.g. index ${an[0].i} value ${an[0].v}` });
+    findings.push({ severity: pct > 0.1 ? "high" : "medium", msg: `${an.length} anomalous reading(s) (robust z > 3.5${irr ? ", weather-normalised" : ""}), e.g. day #${an[0].i + 1}` });
   }
   // 2. Flat-line / copy-paste data detection
   const uniq = new Set(vals.map(v => v.toFixed(3))).size;
@@ -54,13 +58,24 @@ function verify(dataset) {
     if (ratio > 1.1) { const add = Math.min(40, Math.round((ratio - 1) * 40)); risk += add; findings.push({ severity: ratio > 1.5 ? "high" : "medium", msg: `Claim ${dataset.claimedTonnes} t is ${(ratio * 100).toFixed(0)}% of data-supported ${expected.toFixed(1)} t (over-claiming)` }); }
     else findings.push({ severity: "ok", msg: `Claim ${dataset.claimedTonnes} t is consistent with data-supported ${expected.toFixed(1)} t` });
   }
+  // 4. Independent satellite cross-check (NASA POWER irradiance)
+  if (irr && dataset.projectType === "solar" && dataset.capacityKw) {
+    satellite = require("./satellite").crossCheck(dataset, irr);
+    risk += satellite.risk; findings.push(...satellite.findings);
+  } else if (dataset.projectType === "solar") findings.push({ severity: "medium", msg: "Satellite cross-check not run (no location / NASA data)" });
   risk = Math.max(0, Math.min(100, risk));
   if (!findings.some(f => f.severity !== "ok")) findings.push({ severity: "ok", msg: "No anomalies detected" });
-  return { riskScore: risk, expectedTonnes: expected === null ? null : +expected.toFixed(2), decision: risk <= 40 ? "PASS" : "BLOCK", findings, mrvHash: mrvHash(dataset) };
+  return { riskScore: risk, expectedTonnes: expected === null ? null : +expected.toFixed(2), decision: risk <= 40 ? "PASS" : "BLOCK", findings, mrvHash: mrvHash(dataset, opts.salt),
+    satellite: satellite && { correlation: satellite.correlation, reportedKwh: satellite.reportedKwh, expectedKwh: satellite.expectedKwh, maxKwh: satellite.maxKwh, days: satellite.days, source: irr.source } };
 }
 
 // Canonical hash of the dataset (sorted keys) => same data can never be issued twice on-chain.
+// Privacy ("zk-ready" blinded fingerprint): if the oracle's secret 32-byte blinding key is given, the on-chain
+// value is HMAC-SHA256(key, canonical(data)). It is still deterministic (so re-used data is still caught as a
+// duplicate) but outsiders cannot brute-force-guess meter data from the chain. Raw data stays off-chain.
+// This is a keyed hash commitment, NOT a zero-knowledge proof.
 function canonical(o) { if (Array.isArray(o)) return `[${o.map(canonical).join(",")}]`; if (o && typeof o === "object") return `{${Object.keys(o).sort().map(k => JSON.stringify(k) + ":" + canonical(o[k])).join(",")}}`; return JSON.stringify(o); }
-function mrvHash(d) { const { claimedTonnes, ...data } = d; return "0x" + crypto.createHash("sha256").update(canonical(data)).digest("hex"); }
+function mrvHash(d, salt) { const { claimedTonnes, note, ...data } = d; const h = salt ? crypto.createHmac("sha256", Buffer.from(salt.replace(/^0x/, ""), "hex")) : crypto.createHash("sha256"); return "0x" + h.update(canonical(data)).digest("hex"); }
+const newSalt = () => "0x" + crypto.randomBytes(32).toString("hex");
 
-module.exports = { verify, anomalies, mrvHash, canonical };
+module.exports = { verify, anomalies, mrvHash, canonical, newSalt };

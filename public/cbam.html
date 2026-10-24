@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>CarbonGuard CBAM – exporter attestation</title><style>body{font-family:system-ui,sans-serif;margin:0;background:#0b1f17;color:#e8f5ee}header{padding:18px 28px;background:#0f2e22;border-bottom:1px solid #1f5c43}h1{margin:0;font-size:24px}h1 span{color:#4ade80}.sub{color:#9fc9b3;font-size:14px}
+main{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px 28px}.card{background:#123426;border:1px solid #1f5c43;border-radius:10px;padding:16px}h2{margin-top:0;font-size:17px;color:#86efac}
+button{background:#22c55e;border:0;color:#04210f;font-weight:700;padding:9px 14px;border-radius:7px;cursor:pointer;margin:3px}button.alt{background:#f59e0b}textarea{width:100%;height:150px;background:#071812;color:#cfe;border:1px solid #1f5c43;font-family:monospace;font-size:12px}
+.pass{color:#4ade80;font-weight:700}.block{color:#f87171;font-weight:700}.f-high{color:#fca5a5}.f-medium{color:#fcd34d}.f-ok{color:#86efac}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border-bottom:1px solid #1f5c43;padding:5px;text-align:left}
+.log{font-family:monospace;font-size:11px;white-space:pre-wrap;color:#9fc9b3;word-break:break-all}.score{font-size:42px;font-weight:800}canvas{width:100%;height:120px;background:#071812;border-radius:6px}.full{grid-column:1/3}</style></head></head><body>
+<header><h1>Carbon<span>Guard</span> CBAM — verified embedded emissions for Indian exporters</h1><div class="sub">EU CBAM (definitive period 2026): importers must declare embedded CO₂ of steel/aluminium. Exporter enters data → AI checks it → salted commitment attested on-chain → EU importer verifies.</div><nav style="margin-top:8px"><a style="color:#4ade80;margin-right:16px" href="/">① Carbon credits + satellite MRV</a><a style="color:#fcd34d;margin-right:16px" href="/cbam.html">② CBAM exporter attestation</a><a style="color:#93c5fd" href="/verify.html">③ EU importer verify</a></nav></header>
+<main>
+<div class="card"><h2>1 · Exporter activity data (quarter)</h2><button onclick="load('cbam_honest')">Load honest steel exporter</button><button class="alt" onclick="load('cbam_fraud')">Load "green-washed" exporter</button>
+<textarea id="ds" style="height:260px"></textarea><div><button onclick="assess()">Run AI anomaly check</button><button onclick="attest()">Create on-chain attestation</button></div></div>
+<div class="card"><h2>2 · AI result</h2><div id="ai">Load data and run the check.</div><h2 style="margin-top:14px">Attestation (give to EU importer)</h2><div id="log" class="log"></div></div>
+</main><script>
+const $=id=>document.getElementById(id);
+async function load(n){$('ds').value=JSON.stringify(await (await fetch('/data/'+n+'.json')).json(),null,1);$('ai').textContent='Data loaded. Run the AI check.';$('log').textContent=''}
+const post=async(u,b)=>(await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)})).json();
+function show(a){$('ai').innerHTML=`<div class="score ${a.decision=='PASS'?'pass':'block'}">${a.riskScore}/100 · ${a.decision}</div><div>Route: ${a.route}</div><div>Declared: <b>${a.declaredIntensity} tCO₂/t</b> · Recomputed from fuel+electricity: <b>${a.computedIntensity} tCO₂/t</b> · Embedded total: ${a.embeddedTCO2} tCO₂</div><ul>${a.findings.map(f=>`<li class="f-${f.severity}">${f.msg}</li>`).join('')}</ul>`}
+async function assess(){show(await post('/api/cbam/assess',JSON.parse($('ds').value)))}
+async function attest(){const r=await post('/api/cbam/attest',JSON.parse($('ds').value));show(r.ai);
+ $('log').innerHTML=r.ok?`✅ Attested on-chain\n<b>Attestation ID:</b> ${r.id}\n<b>Commitment:</b> ${r.commitment}\n<b>Secret salt (exporter keeps; share only with auditor):</b> ${r.salt}\n${r.log.join('\n')}\n<a style="color:#93c5fd" href="/verify.html#${r.id}">→ Open EU importer verify page</a>`:'⛔ '+r.error+'\n'+r.log.join('\n');
+ if(r.ok)localStorage.setItem('cg_last',JSON.stringify({id:r.id,salt:r.salt,data:JSON.parse($('ds').value)}))}
+load('cbam_honest');
+</script></body></html>
