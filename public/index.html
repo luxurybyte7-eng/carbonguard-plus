@@ -16,7 +16,7 @@ button{background:#22c55e;border:0;color:#04210f;font-weight:700;padding:9px 14p
 <script>
 const $=id=>document.getElementById(id);
 fetch('/api/info').then(r=>r.json()).then(i=>$('net').textContent=`network: ${i.network} · registry ${i.registry}`);
-async function load(n){const d=await (await fetch('/data/'+n+'.json')).json();$('ds').value=JSON.stringify(d,null,1);draw(d)}
+async function load(n){const d=await (await fetch('/data/'+n+'.json')).json();$('ds').value=JSON.stringify(d,null,1);draw(d);$('ai').textContent='Loaded '+d.name+' ('+(d.location?d.location.place:'')+'). Run AI verification.';$('log').textContent=''}
 function ds(){return JSON.parse($('ds').value)}
 function draw(d,sat){const c=$('chart'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);const v=d.readings.map(r=>r.value),m=Math.max(...v,...(sat?sat.days.map(q=>q.max):[]));const lim=d.capacityKw?d.capacityKw*24*.35:null;
  v.forEach((y,i)=>{x.fillStyle=lim&&y>lim?'#f87171':'#4ade80';const w=c.width/v.length;x.fillRect(i*w+1,c.height-y/m*110,w-2,y/m*110)});if(lim){x.strokeStyle='#f59e0b';const yy=c.height-lim/m*110;x.beginPath();x.moveTo(0,yy);x.lineTo(c.width,yy);x.stroke();x.fillStyle='#f59e0b';x.fillText('physical max',4,yy-3)}
