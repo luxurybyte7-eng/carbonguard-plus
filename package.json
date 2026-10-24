@@ -1,0 +1,22 @@
+{
+  "name": "carbonguard",
+  "version": "1.0.0",
+  "description": "AI-verified carbon credits with on-chain double-counting prevention",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "start": "hardhat run scripts/server.js",
+    "deploy:amoy": "hardhat run scripts/deploy.js --network amoy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.29.1"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  }
+}
