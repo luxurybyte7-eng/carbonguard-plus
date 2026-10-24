@@ -79,5 +79,5 @@ MIT License.
 - **Demo:** `npx hardhat run scripts/server.js`, then open http://localhost:8787
 
 ## Links
-- Video: https://youtu.be/o0lkQtv9OPE
+- Video: https://youtu.be/o0IkQtv9OPE
 - Independent AI security review (OpenClaw agent): `docs/OPENCLAW_REVIEW.md`. Its critical findings (single hot key for all roles, unauthenticated demo API, attestation not binding the amount, exact-match dedupe) are known limitations of this prototype and are on the roadmap.

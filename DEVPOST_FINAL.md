@@ -14,7 +14,7 @@ solidity, hardhat, ethers.js, node.js, express, javascript, nasa-power-api, sha-
 
 ## Links
 - GitHub: https://github.com/luxurybyte7-eng/carbonguard-plus
-- Video demo: https://youtu.be/o0lkQtv9OPE
+- Video demo: https://youtu.be/o0IkQtv9OPE
 
 ---
 
