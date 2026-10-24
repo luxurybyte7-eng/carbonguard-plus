@@ -1,4 +1,4 @@
-# CarbonGuard: AI-verified carbon credits with on-chain double-counting prevention
+# CarbonGuard+: AI- and satellite-verified carbon credits with on-chain double-counting prevention
 **IEEE ClimateChain Global Hackathon 2026 · Track: Carbon Markets & Emissions Transparency**
 
 ## Problem
@@ -9,7 +9,7 @@ Voluntary carbon markets have a trust crisis.
 - Verification is slow, manual, and opaque.
 
 ## Solution
-CarbonGuard puts an **explainable AI verifier** in front of a **smart-contract registry**:
+CarbonGuard+ puts an **explainable AI verifier** in front of a **smart-contract registry**:
 1. A project uploads its MRV data: sensor readings, capacity, and the claimed tCO2e.
 2. The **AI verifier** checks the data and returns a 0–100 risk score with plain-English findings. It looks for:
    - robust anomaly detection (MAD z-score),
@@ -39,7 +39,7 @@ MRV data ──> AI verifier (ai/verifier.js) ──risk+hash──> CarbonGuard
 ## Run
 ```bash
 npm install
-npm test          # 10 tests: contract + AI
+npm test          # 16 tests: registry, AI, satellite, blinded hashes, CBAM
 npm start         # local in-process chain + dashboard on http://localhost:8787
 ```
 **Testnet only:** `TESTNET_PRIVATE_KEY=<fresh faucet wallet> npm run deploy:amoy`. The deploy script refuses mainnet chain IDs. Never use real funds.
@@ -54,10 +54,10 @@ Screenshots are in `screenshots/`.
 
 ## Impact and scale
 - **Who it's for:** registries (Verra, Gold Standard, India's CCTS), project developers, buyers, and auditors.
-- **Adoption:** the verifier runs as a pluggable oracle, and the contract is EVM-standard (Polygon, Ethereum L2s).
+- **Adoption:** the verifier runs as a pluggable oracle, and the contract is EVM-standard and should port to Polygon or Ethereum L2s. **Status:** demo runs on a local Hardhat chain; no testnet deployment yet.
 - **Roadmap:**
   - IoT device signatures,
-  - satellite data for reforestation,
+  - satellite NDVI for reforestation (solar satellite cross-check already done),
   - a decentralized verifier quorum,
   - ERC-1155 credit tokens,
   - cross-registry hash sharing to stop cross-registry double counting.
@@ -77,3 +77,7 @@ MIT License.
 - **Tests:** `npx hardhat test` gives 16 passing. Security notes are in `SECURITY.md`.
 - **Testnet:** `npx hardhat run scripts/deploy.js --network sepolia` (needs a funded key in env `PRIVATE_KEY` or `.secrets/testnet_wallet.json`).
 - **Demo:** `npx hardhat run scripts/server.js`, then open http://localhost:8787
+
+## Links
+- Video: https://youtu.be/o0lkQtv9OPE
+- Independent AI security review (OpenClaw agent): `docs/OPENCLAW_REVIEW.md`. Its critical findings (single hot key for all roles, unauthenticated demo API, attestation not binding the amount, exact-match dedupe) are known limitations of this prototype and are on the roadmap.
