@@ -69,3 +69,11 @@ Screenshots are in `screenshots/`.
 - Role-based access is enforced, and custom errors are used throughout.
 
 MIT License.
+
+## CarbonGuard+ upgrade
+- **NASA POWER satellite cross-check** (`ai/satellite.js`): reported solar output is checked against real sunlight data for the site (correlation + physical maximum). The result feeds the risk score.
+- **CBAM attestation** (`contracts/CBAMAttestation.sol`, `ai/cbam.js`, `/cbam.html`, `/verify.html`): exporters attest embedded emissions, and EU importers can verify a commitment or detect tampering.
+- **Privacy (zk-ready):** HMAC-blinded MRV fingerprints and salted commitments. No raw data goes on-chain.
+- **Tests:** `npx hardhat test` gives 16 passing. Security notes are in `SECURITY.md`.
+- **Testnet:** `npx hardhat run scripts/deploy.js --network sepolia` (needs a funded key in env `PRIVATE_KEY` or `.secrets/testnet_wallet.json`).
+- **Demo:** `npx hardhat run scripts/server.js`, then open http://localhost:8787

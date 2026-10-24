@@ -41,3 +41,10 @@ Trust problems in climate finance are as much about data integrity as about toke
 - A pilot with Indian rooftop-solar cooperatives under the CCTS.
 
 **Links to add:** GitHub repo URL, YouTube video URL, demo URL (optional).
+
+## What's new in CarbonGuard+
+- Satellite-verified MRV using the NASA POWER daily irradiance API. Honest Jaipur project: risk 0 (r=0.98). Inflated project: risk 100, blocked on-chain.
+- EU CBAM exporter attestation with an importer verify page that detects tampered data.
+- Privacy-preserving, zk-ready commitments (HMAC / salted hashes; not a ZK proof yet).
+- 16 automated tests, SECURITY.md threat model, and a 4:46 demo video.
+- Built with AI agents: OpenClaw (security review) and Paperclip (workstream tracking).
