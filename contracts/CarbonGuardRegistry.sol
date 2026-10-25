@@ -25,35 +25,49 @@ contract CarbonGuardRegistry {
     mapping(bytes32 => Batch) public batches;            // batchId => Batch
     mapping(bytes32 => bool) public usedSerial;          // keccak(registry, serial) used?
     mapping(bytes32 => bool) public usedMrv;             // MRV data hash used?
-    mapping(bytes32 => uint8) public attestedRisk;       // mrvHash => risk+1 (0 = none)
+    mapping(bytes32 => uint8) public attestedRisk;       // termsHash(mrvHash, projectId, amount, vintage, chainid) => risk+1 (0 = none)
     mapping(bytes32 => mapping(address => uint256)) public balanceOf; // batchId => holder => tonnes
     bytes32[] public batchIds;
 
     event VerifierSet(address v, bool ok);
     event IssuerSet(address i, bool ok);
-    event Attested(bytes32 indexed mrvHash, uint8 riskScore, string reportURI);
+    event Attested(bytes32 indexed mrvHash, bytes32 termsHash, uint256 amount, uint8 riskScore, string reportURI);
     event Issued(bytes32 indexed batchId, bytes32 projectId, uint16 vintage, uint256 amount, bytes32 mrvHash, uint8 riskScore);
     event Transferred(bytes32 indexed batchId, address from, address to, uint256 amount);
     event Retired(bytes32 indexed batchId, address holder, uint256 amount, string beneficiary, string reason);
 
     error NotAdmin(); error NotVerifier(); error NotIssuer();
     error DuplicateSerial(); error DuplicateMrvData(); error NotAttested(); error RiskTooHigh(uint8 score);
-    error UnknownBatch(); error InsufficientBalance(); error BadAmount(); error BadScore();
+    error AlreadyAttested(); error ZeroAddress(); error UnknownBatch(); error InsufficientBalance(); error BadAmount(); error BadScore();
 
     modifier onlyAdmin() { if (msg.sender != admin) revert NotAdmin(); _; }
 
-    constructor() { admin = msg.sender; verifiers[msg.sender] = true; issuers[msg.sender] = true; }
+    /// @notice Roles are separate keys: admin (governance only), AI-oracle verifier, project issuer.
+    ///         The admin is NOT automatically a verifier or issuer (least privilege).
+    constructor(address verifier, address issuer) {
+        if (verifier == address(0) || issuer == address(0)) revert ZeroAddress();
+        admin = msg.sender; verifiers[verifier] = true; issuers[issuer] = true;
+        emit VerifierSet(verifier, true); emit IssuerSet(issuer, true);
+    }
+
+    /// @notice The exact terms an AI approval covers. Changing amount, project or vintage => different hash => NotAttested.
+    function termsHash(bytes32 mrvHash, bytes32 projectId, uint256 amount, uint16 vintage) public view returns (bytes32) {
+        return keccak256(abi.encode(block.chainid, address(this), mrvHash, projectId, amount, vintage));
+    }
 
     function setVerifier(address v, bool ok) external onlyAdmin { verifiers[v] = ok; emit VerifierSet(v, ok); }
     function setIssuer(address i, bool ok) external onlyAdmin { issuers[i] = ok; emit IssuerSet(i, ok); }
     function setMaxRiskScore(uint8 s) external onlyAdmin { if (s > 100) revert BadScore(); maxRiskScore = s; }
 
     /// @notice AI verifier posts its risk score for an MRV dataset (report stored off-chain, e.g. IPFS).
-    function attest(bytes32 mrvHash, uint8 riskScore, string calldata reportURI) external {
+    ///         The approval is bound to (mrvHash, projectId, amount, vintage, chain, contract) and cannot be overwritten.
+    function attest(bytes32 mrvHash, bytes32 projectId, uint256 amount, uint16 vintage, uint8 riskScore, string calldata reportURI) external {
         if (!verifiers[msg.sender]) revert NotVerifier();
         if (riskScore > 100) revert BadScore();
-        attestedRisk[mrvHash] = riskScore + 1;
-        emit Attested(mrvHash, riskScore, reportURI);
+        bytes32 t = termsHash(mrvHash, projectId, amount, vintage);
+        if (attestedRisk[t] != 0) revert AlreadyAttested();
+        attestedRisk[t] = riskScore + 1;
+        emit Attested(mrvHash, t, amount, riskScore, reportURI);
     }
 
     function issue(bytes32 projectId, string calldata registry, string calldata serial, uint16 vintage, uint256 amount, bytes32 mrvHash)
@@ -61,17 +75,17 @@ contract CarbonGuardRegistry {
     {
         if (!issuers[msg.sender]) revert NotIssuer();
         if (amount == 0) revert BadAmount();
-        bytes32 serialKey = keccak256(abi.encodePacked(registry, "|", serial));
+        bytes32 serialKey = keccak256(abi.encode(registry, serial)); // abi.encode: no packed-string collisions
         if (usedSerial[serialKey]) revert DuplicateSerial();
         if (usedMrv[mrvHash]) revert DuplicateMrvData();
-        uint8 r = attestedRisk[mrvHash];
+        uint8 r = attestedRisk[termsHash(mrvHash, projectId, amount, vintage)];
         if (r == 0) revert NotAttested();
         uint8 score = r - 1;
         if (score > maxRiskScore) revert RiskTooHigh(score);
 
         usedSerial[serialKey] = true;
         usedMrv[mrvHash] = true;
-        batchId = keccak256(abi.encodePacked(serialKey, mrvHash));
+        batchId = keccak256(abi.encode(serialKey, mrvHash));
         batches[batchId] = Batch(projectId, vintage, amount, 0, mrvHash, score, msg.sender, true);
         balanceOf[batchId][msg.sender] = amount;
         batchIds.push(batchId);

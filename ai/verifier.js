@@ -62,11 +62,20 @@ function verify(dataset, opts = {}) {
   if (irr && dataset.projectType === "solar" && dataset.capacityKw) {
     satellite = require("./satellite").crossCheck(dataset, irr);
     risk += satellite.risk; findings.push(...satellite.findings);
-  } else if (dataset.projectType === "solar") findings.push({ severity: "medium", msg: "Satellite cross-check not run (no location / NASA data)" });
+  } else if (dataset.projectType === "solar") { risk += 15; findings.push({ severity: "medium", msg: "Satellite cross-check not run (no location / NASA data) - fail-closed: +15 risk" }); }
+  // 5. Trained ML anomaly model (Isolation Forest on NASA-driven synthetic data) with per-feature explanations
+  let ml = null;
+  if (irr && dataset.projectType === "solar" && dataset.capacityKw) {
+    try { ml = require("./ml").assess(dataset, irr); } catch (e) { ml = null; }
+    if (ml) { risk += ml.risk; const top = ml.reasons.filter(r => r.outside).slice(0, 3);
+      findings.push(ml.anomalous ? { severity: "high", msg: `ML anomaly model: score ${ml.score} > ${ml.threshold} - ${top.map(r => r.why).join("; ") || "unusual feature combination"}` }
+        : { severity: "ok", msg: `ML anomaly model: score ${ml.score} (threshold ${ml.threshold}) - looks like honest PV data` }); }
+  }
+  if (!Array.isArray(dataset.readings) || vals.some(v => !Number.isFinite(v) || v < 0)) { risk += 40; findings.push({ severity: "high", msg: "Malformed readings (non-numeric or negative) - fail-closed" }); }
   risk = Math.max(0, Math.min(100, risk));
   if (!findings.some(f => f.severity !== "ok")) findings.push({ severity: "ok", msg: "No anomalies detected" });
   return { riskScore: risk, expectedTonnes: expected === null ? null : +expected.toFixed(2), decision: risk <= 40 ? "PASS" : "BLOCK", findings, mrvHash: mrvHash(dataset, opts.salt),
-    satellite: satellite && { correlation: satellite.correlation, reportedKwh: satellite.reportedKwh, expectedKwh: satellite.expectedKwh, maxKwh: satellite.maxKwh, days: satellite.days, source: irr.source } };
+    ml, satellite: satellite && { correlation: satellite.correlation, reportedKwh: satellite.reportedKwh, expectedKwh: satellite.expectedKwh, maxKwh: satellite.maxKwh, days: satellite.days, source: irr.source } };
 }
 
 // Canonical hash of the dataset (sorted keys) => same data can never be issued twice on-chain.

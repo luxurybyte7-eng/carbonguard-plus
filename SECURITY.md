@@ -22,3 +22,11 @@ Carbon credit batches (CarbonCreditRegistry), CBAM attestations (CBAMAttestation
 - No external audit has been done, and the contracts are not upgradeable.
 
 Report issues privately to the maintainers. Please do not open public issues for vulnerabilities.
+
+## v2 fixes (Oct 25, 2026)
+- Separate keys: the registry constructor takes `(verifier, issuer)`, and the admin is neither. CBAM takes `(verifier)`. Tests cover this.
+- Attestations are bound to `keccak(chainid, contract, mrvHash, projectId, amount, vintage)` and can't be overwritten (`AlreadyAttested`).
+- `abi.encode` replaces `abi.encodePacked` in the serial and batch keys.
+- The public API has a per-IP rate limit (`RATE_LIMIT_PER_MIN`), an optional `API_KEY` for write endpoints and an optional `READ_ONLY=1`. The JSON body limit is 200 kb, and lat/lon are validated before the NASA cache path is built.
+- Scoring fails closed: missing satellite data adds +15 risk, and malformed readings add +40.
+- Still open: fuzzy or cross-registry dedupe (#3), the CBAM verify semantics (#5), privacy of low-entropy fields (#6), a multisig admin and EIP-712.

@@ -9,8 +9,12 @@ const hre = require("hardhat"); const fs = require("fs"); const path = require("
   console.log("Deployer", signer.address, "balance", hre.ethers.formatEther(bal), "on", hre.network.name);
   if (bal === 0n) throw new Error("Deployer has 0 balance: fund it from a faucet first");
   const out = { network: hre.network.name, chainId, deployer: signer.address, at: new Date().toISOString() };
-  for (const name of ["CarbonGuardRegistry", "CBAMAttestation"]) {
-    const c = await (await hre.ethers.getContractFactory(name)).deploy(); await c.waitForDeployment();
+  // Separate role keys: set VERIFIER_ADDRESS (AI oracle) and ISSUER_ADDRESS; the deployer stays admin only.
+  const verifier = process.env.VERIFIER_ADDRESS || signer.address, issuerA = process.env.ISSUER_ADDRESS || signer.address;
+  if (verifier === signer.address || issuerA === signer.address) console.warn("WARNING: admin key reused for a role; set VERIFIER_ADDRESS / ISSUER_ADDRESS");
+  out.verifier = verifier; out.issuer = issuerA;
+  for (const [name, args] of [["CarbonGuardRegistry", [verifier, issuerA]], ["CBAMAttestation", [verifier]]]) {
+    const c = await (await hre.ethers.getContractFactory(name)).deploy(...args); await c.waitForDeployment();
     out[name] = await c.getAddress(); console.log(name, out[name]);
   }
   const ex = { 11155111: "https://sepolia.etherscan.io/address/", 80002: "https://amoy.polygonscan.com/address/" }[chainId];

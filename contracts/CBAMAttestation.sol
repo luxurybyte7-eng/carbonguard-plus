@@ -27,7 +27,8 @@ contract CBAMAttestation {
     event Revoked(bytes32 indexed id, string reason);
     error NotAdmin(); error NotVerifier(); error RiskTooHigh(uint8 score); error DuplicateCommitment(); error Unknown(); error BadInput();
 
-    constructor() { admin = msg.sender; verifiers[msg.sender] = true; }
+    error ZeroAddress();
+    constructor(address verifier) { if (verifier == address(0)) revert ZeroAddress(); admin = msg.sender; verifiers[verifier] = true; } // admin and AI-oracle verifier are separate keys
     function setVerifier(address v, bool ok) external { if (msg.sender != admin) revert NotAdmin(); verifiers[v] = ok; }
 
     function attest(bytes32 commitment, bytes32 exporterId, string calldata cnCode, uint16 year, uint8 quarter,

@@ -10,11 +10,12 @@ AI + NASA satellite data verify carbon credits before a smart contract issues th
 Carbon Markets & Emissions Transparency
 
 ## Built with
-solidity, hardhat, ethers.js, node.js, express, javascript, nasa-power-api, sha-256, hmac, html, css
+solidity, hardhat, ethers.js, node.js, express, javascript, nasa-power-api, sha-256, hmac, html, css, isolation-forest (machine learning), openrouter (llm), pm2, cloudflare-tunnel
 
 ## Links
 - GitHub: https://github.com/luxurybyte7-eng/carbonguard-plus
 - Video demo: https://youtu.be/o0IkQtv9OPE
+- Live demo: https://coupons-holes-thereof-zones.trycloudflare.com (public and rate-limited; runs on an in-process Hardhat chain, not a public testnet)
 
 ---
 
@@ -35,18 +36,20 @@ Voluntary carbon markets have a trust problem. Investigations keep finding "phan
 - **AI:** dependency-free JavaScript modules (`ai/verifier.js`, `ai/satellite.js`, `ai/cbam.js`), so every decision is explainable.
 - **Satellite data:** the NASA POWER daily irradiance API.
 - **App:** an Express API plus a vanilla JS dashboard, running against an in-process local Hardhat chain at localhost:8787.
-- **Tests:** 16 automated tests (`npx hardhat test`) cover issuance gating, fraud blocking, double counting, retirement, roles, the satellite cross-check, blinded hashes, and the CBAM attest/verify/tamper/revoke flow.
-- **AI agents:** an OpenClaw agent did an independent security and design review (`docs/OPENCLAW_REVIEW.md`), and we used its findings for our threat model (`SECURITY.md`) and roadmap.
+- **Tests:** 28 automated tests (`npx hardhat test`) cover issuance gating, fraud blocking, double counting, retirement, roles, the satellite cross-check, blinded hashes, and the CBAM attest/verify/tamper/revoke flow.
+- **ML model:** a pure-JS Isolation Forest (150 trees) trained on 3,000 synthetic honest solar projects built from real NASA POWER irradiance for 6 Indian cities. On held-out data it gives 2.2% false alarms and catches 93.5% of cloud-ignoring data, 99% of spike edits and 100% of copy-paste data. It is weak on pure claim inflation (4.5%), which the rule layer catches. Every verdict names the features outside the honest range.
+- **LLM audit summary:** a plain-English summary through OpenRouter (deepseek-chat). It only explains the result and never changes the score, and it falls back to a template if the LLM is unavailable.
+- **AI agents:** an OpenClaw agent did an independent security review (`docs/OPENCLAW_REVIEW.md`). We fixed its findings #1 (separate admin, AI-oracle and issuer keys; rate-limited public API), #2 (approval bound to amount, project, vintage and chain, and can't be overwritten), #4 and #7 (fail-closed scoring), plus the path-traversal issue. Findings #3, #5 and #6 remain open.
 
 ## Challenges we ran into
 - **Explainability:** auditors need to see *why* a credit was blocked, not just a number.
 - **Dedupe that survives tricks:** cosmetic edits (notes, field order, the claim) must not create a "new" dataset, so the fingerprint is computed over canonical readings.
 - **No false positives on cloudy days:** satellite checks had to weather-normalise so that honest projects pass.
 - **Privacy vs. verifiability:** we needed commitments that an importer can check without publishing raw commercial data.
-- **Testnet:** public faucets were blocked by captchas, so the demo runs on a local Hardhat chain. Deploy scripts for Sepolia and Polygon Amoy are included, but **nothing is deployed to a public testnet yet**.
+- **Testnet:** public faucets were blocked by captchas, so **nothing is deployed to a public testnet yet**. Instead, judges can use a public hosted demo (https://coupons-holes-thereof-zones.trycloudflare.com) that runs the real contracts on an in-process Hardhat chain on our server. That chain resets on restart. Deploy scripts for Sepolia and Polygon Amoy are included.
 
 ## Accomplishments that we're proud of
-- A complete working flow on a local EVM chain with 16 passing tests: verify → satellite cross-check → attest → issue → block fraud → block double count → retire.
+- A complete working flow on a local EVM chain with 28 passing tests: verify → satellite cross-check → attest → issue → block fraud → block double count → retire.
 - The flow uses real NASA satellite data, not mocked thresholds.
 - A CBAM verify page that catches a single tampered number.
 - An honest, documented threat model, including an external AI review of our own weak spots.
@@ -57,6 +60,6 @@ Voluntary carbon markets have a trust problem. Investigations keep finding "phan
 
 ## What's next for CarbonGuard+
 - Deploy to the Polygon Amoy testnet, then pilot with Indian rooftop-solar cooperatives under CCTS.
-- Split roles behind a multisig and use EIP-712 signed attestations that bind amount, project, and vintage (review findings 1–2).
+- Put the admin role behind a multisig and move to EIP-712 signed attestations; add fuzzy dedupe across registries (review finding 3).
 - Tolerance-bucketed fingerprints, normalised registry IDs, and a cross-registry hash registry to stop the same tonne appearing in both Verra and Gold Standard.
 - Signed IoT meters, satellite NDVI for forestry, a multi-verifier quorum, ERC-1155 credits, and real ZK proofs for CBAM disclosures.

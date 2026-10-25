@@ -30,7 +30,7 @@ describe("Upgrade: CBAM module", () => {
   });
   it("on-chain attestation: verify with disclosed data+salt, detect tampering, block high risk & duplicates, revoke", async () => {
     const [admin, rando] = await ethers.getSigners();
-    const c = await (await ethers.getContractFactory("CBAMAttestation")).deploy();
+    const c = await (await ethers.getContractFactory("CBAMAttestation")).deploy(admin.address);
     const d = require("../data/cbam_honest.json"), salt = v.newSalt(), com = cbam.commitment(d, salt);
     const tx = await c.attest(com, ethers.id(d.exporterId), "7208", 2026, 3, 12000, 2318, 0); const rc = await tx.wait();
     const id = rc.logs.map(l => c.interface.parseLog(l)).find(e => e.name === "Attested").args.id;

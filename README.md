@@ -1,6 +1,33 @@
 # CarbonGuard+: AI- and satellite-verified carbon credits with on-chain double-counting prevention
 **IEEE ClimateChain Global Hackathon 2026 · Track: Carbon Markets & Emissions Transparency**
 
+
+## 🔴 Live demo
+**https://coupons-holes-thereof-zones.trycloudflare.com** — public, rate-limited demo (in-process Hardhat chain on our server; it resets on restart, and the tunnel URL may change if the server restarts). Pages: `/` credits + satellite + ML, `/cbam.html`, `/verify.html`.
+
+## v2 upgrade (Oct 25, 2026)
+- **Trained ML anomaly model:** a pure-JS Isolation Forest (`ai/ml.js`, 150 trees) trained by `scripts/train_model.js` on 3,000 synthetic honest PV projects driven by **real NASA POWER daily irradiance for 6 Indian cities (2025)**. Held-out results: 2.2% false alarms on honest data; detection 93.5% cloud-ignoring data, 99% spikes, 100% copy-paste, 52.5% meter scaled x1.3-1.8, 4.5% claim-only inflation (claim inflation is caught by the rule layer instead). Each verdict lists the features outside the honest range, with a reason.
+- **LLM audit summary** (`ai/llm.js`): a plain-English summary through OpenRouter (deepseek-chat) that only explains and never changes the score. Without a key, or on an error or timeout, it falls back to a deterministic template.
+- **Security fixes** from the OpenClaw review (see Links), plus a cleaner dashboard. New screenshots: `screenshots/v2_*.png`.
+
+```mermaid
+flowchart LR
+  M[Meter / MRV data] --> R[Rule checks: plausibility, over-claim, flat-line]
+  N[NASA POWER satellite irradiance] --> S[Satellite cross-check]
+  N --> F[ML Isolation Forest + per-feature reasons]
+  M --> S
+  M --> F
+  R --> V{Risk score 0-100, PASS if 40 or less}
+  S --> V
+  F --> V
+  V --> LL[LLM audit summary, template fallback]
+  V -- oracle key --> A[attest: mrvHash + project + amount + vintage + chain]
+  A --> C[(CarbonGuardRegistry.sol)]
+  I[Issuer key] -- issue --> C
+  C --> T[transfer / retire, no double counting]
+  X[CBAM exporter data] --> CB[(CBAMAttestation.sol)] --> E[EU importer verify page]
+```
+
 ## Problem
 Voluntary carbon markets have a trust crisis.
 - Credits get **over-issued**: claims exceed what the measured data supports.
@@ -39,7 +66,8 @@ MRV data ──> AI verifier (ai/verifier.js) ──risk+hash──> CarbonGuard
 ## Run
 ```bash
 npm install
-npm test          # 16 tests: registry, AI, satellite, blinded hashes, CBAM
+npm test          # 28 tests: registry + roles + amount binding, AI rules, ML model, LLM fallback, satellite, blinded hashes, CBAM
+node scripts/train_model.js   # retrain the Isolation Forest -> ai/model/iforest.json
 npm start         # local in-process chain + dashboard on http://localhost:8787
 ```
 **Testnet only:** `TESTNET_PRIVATE_KEY=<fresh faucet wallet> npm run deploy:amoy`. The deploy script refuses mainnet chain IDs. Never use real funds.
@@ -54,7 +82,7 @@ Screenshots are in `screenshots/`.
 
 ## Impact and scale
 - **Who it's for:** registries (Verra, Gold Standard, India's CCTS), project developers, buyers, and auditors.
-- **Adoption:** the verifier runs as a pluggable oracle, and the contract is EVM-standard and should port to Polygon or Ethereum L2s. **Status:** demo runs on a local Hardhat chain; no testnet deployment yet.
+- **Adoption:** the verifier runs as a pluggable oracle, and the contract is EVM-standard and should port to Polygon or Ethereum L2s. **Status:** the public demo runs an in-process Hardhat chain on a server; no public-testnet deployment yet (faucets needed captchas).
 - **Roadmap:**
   - IoT device signatures,
   - satellite NDVI for reforestation (solar satellite cross-check already done),
@@ -74,10 +102,10 @@ MIT License.
 - **NASA POWER satellite cross-check** (`ai/satellite.js`): reported solar output is checked against real sunlight data for the site (correlation + physical maximum). The result feeds the risk score.
 - **CBAM attestation** (`contracts/CBAMAttestation.sol`, `ai/cbam.js`, `/cbam.html`, `/verify.html`): exporters attest embedded emissions, and EU importers can verify a commitment or detect tampering.
 - **Privacy (zk-ready):** HMAC-blinded MRV fingerprints and salted commitments. No raw data goes on-chain.
-- **Tests:** `npx hardhat test` gives 16 passing. Security notes are in `SECURITY.md`.
+- **Tests:** `npx hardhat test` gives 28 passing. Security notes are in `SECURITY.md`.
 - **Testnet:** `npx hardhat run scripts/deploy.js --network sepolia` (needs a funded key in env `PRIVATE_KEY` or `.secrets/testnet_wallet.json`).
 - **Demo:** `npx hardhat run scripts/server.js`, then open http://localhost:8787
 
 ## Links
 - Video: https://youtu.be/o0IkQtv9OPE
-- Independent AI security review (OpenClaw agent): `docs/OPENCLAW_REVIEW.md`. Its critical findings (single hot key for all roles, unauthenticated demo API, attestation not binding the amount, exact-match dedupe) are known limitations of this prototype and are on the roadmap.
+- Independent AI security review (OpenClaw agent): `docs/OPENCLAW_REVIEW.md`. Fixed in v2: findings #1 (separate admin / oracle / issuer keys + rate-limited public API, optional API key / read-only mode), #2 (attestation bound to amount, project, vintage, chain and contract; no overwrite), #4 (`abi.encode` instead of packed strings), #7 (fail-closed scoring on missing satellite data / malformed input), #8 path-traversal part (validated lat/lon). Still open: #3 (fuzzy dedupe), #5, #6, multisig/EIP-712.
